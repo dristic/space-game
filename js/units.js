@@ -23,6 +23,13 @@ Enemy.prototype.update = function() {
   this.object.position.add(this.velocity);
 };
 
+Enemy.prototype.aabb = function() {
+  return new THREE.Box2(
+    new THREE.Vector2(this.object.position.x - 5, this.object.position.y - 5),
+    new THREE.Vector2(this.object.position.x + 5, this.object.position.y + 5)
+  );
+};
+
 /////////////
 // Ship
 /////////////
@@ -90,11 +97,12 @@ Ship.prototype.update = function() {
   if (this.velocity.x < 0.01 && this.velocity.x > -0.01) this.velocity.x = 0;
 
   this.object.position.add(this.velocity);
+  this.object.position.clamp(new THREE.Vector3(-200, -1000, 0), new THREE.Vector3(200, 1000, 0));
 
   for (var i = this.bullets.length - 1; i >= 0; i--) {
     this.bullets[i].update();
     if(this.bullets[i].shouldDelete) {
-      this.scene.remove(this.bullets[i]);
+      this.scene.remove(this.bullets[i].object);
       this.bullets.splice(i, 1);
     }
   };

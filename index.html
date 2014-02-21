@@ -139,6 +139,13 @@
 				    pMaterial);
 				scene.add(particleSystem);
 
+				// var textMat = new THREE.MeshBasicMaterial({
+				// 	color: 0xFFFFFF
+				// });
+
+				// var textGeo = new THREE.TextGeometry("Lives");
+				// scene.add(new THREE.Mesh(textGeo, textMat));
+
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 				document.addEventListener( 'touchstart', onDocumentTouchStart, false );
 				document.addEventListener( 'touchmove', onDocumentTouchMove, false );
@@ -174,7 +181,9 @@
 				if (Date.now() - lastSpawn > spawnTime) {
 					lastSpawn = Date.now();
 
-					var enemy = new Enemy(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
+					var xPos = Math.floor(Math.random() * 400) - 200;
+
+					var enemy = new Enemy(new THREE.Vector3(xPos, 300, 0), new THREE.Vector3(0, -1, 0));
 					scene.add(enemy.object);
 					enemies.push(enemy);
 				}
@@ -182,8 +191,18 @@
 				for (var i = enemies.length - 1; i >= 0; i--) {
 					var enemy = enemies[i];
 					enemy.update();
+
+					var box = enemy.aabb();
+					for(var j = 0; j < ship.bullets.length; j++) {
+						var bullet = ship.bullets[j];
+						if (box.containsPoint(new THREE.Vector2(bullet.object.position.x, bullet.object.position.y))) {
+							enemy.shouldDelete = true;
+							bullet.shouldDelete = true;
+						}
+					}
+
 					if (enemy.shouldDelete) {
-						scene.remove(enemy);
+						scene.remove(enemy.object);
 						enemies.splice(i, 1);
 					}
 				};
