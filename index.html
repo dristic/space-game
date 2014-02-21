@@ -59,7 +59,7 @@
 		<script src="js/Detector.js"></script>
 		<script src="js/stats.min.js"></script>
 
-		<script src="js/Ship.js"></script>
+		<script src="js/units.js"></script>
 
 		<script>
 
@@ -67,7 +67,11 @@
 
 			var effectFXAA;
 
-			var ship;
+			var ship, particleSystem;
+
+			var enemies = [],
+					lastSpawn = Date.now(),
+					spawnTime = 3000;
 
 			var mouseX = 0, mouseY = 0,
 
@@ -103,8 +107,37 @@
 				container.appendChild( stats.domElement );
 
 				// Add ship
-				ship = new Ship();
+				ship = new Ship(new THREE.Vector3(0, -200, 0), scene);
 				scene.add(ship.object);
+
+				// Particles
+				var particleCount = 1800,
+				    particles = new THREE.Geometry(),
+				    pMaterial =
+				      new THREE.ParticleBasicMaterial({
+				        color: 0xFFFFFF,
+				        size: 20,
+				        map: THREE.ImageUtils.loadTexture('textures/particle.png'),
+				        blending: THREE.AdditiveBlending,
+				        transparent: true
+				      });
+
+				for(var p = 0; p < particleCount; p++) {
+				  var pX = Math.random() * 500 - 250,
+				      pY = Math.random() * 500 - 250,
+				      pZ = Math.random() * 500 - 400,
+				      particle = new THREE.Vector3(pX, pY, pZ);
+
+				  particle.velocity = new THREE.Vector3(0, -Math.random(), 0);
+
+				  particles.vertices.push(particle);
+				}
+
+				particleSystem =
+				  new THREE.ParticleSystem(
+				    particles,
+				    pMaterial);
+				scene.add(particleSystem);
 
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 				document.addEventListener( 'touchstart', onDocumentTouchStart, false );
@@ -135,8 +168,26 @@
 				//
 
 				window.addEventListener( 'resize', onWindowResize, false );
-
 			}
+
+			function trySpawn() {
+				if (Date.now() - lastSpawn > spawnTime) {
+					lastSpawn = Date.now();
+
+					var enemy = new Enemy(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
+					scene.add(enemy.object);
+					enemies.push(enemy);
+				}
+
+				for (var i = enemies.length - 1; i >= 0; i--) {
+					var enemy = enemies[i];
+					enemy.update();
+					if (enemy.shouldDelete) {
+						scene.remove(enemy);
+						enemies.splice(i, 1);
+					}
+				};
+			};
 
 			function onWindowResize() {
 
@@ -199,6 +250,39 @@
 
 			}
 
+			var VISIBLE = true;
+			// Set the name of the hidden property and the change event for visibility
+			var hidden, visibilityChange; 
+			if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
+			  hidden = "hidden";
+			  visibilityChange = "visibilitychange";
+			} else if (typeof document.mozHidden !== "undefined") {
+			  hidden = "mozHidden";
+			  visibilityChange = "mozvisibilitychange";
+			} else if (typeof document.msHidden !== "undefined") {
+			  hidden = "msHidden";
+			  visibilityChange = "msvisibilitychange";
+			} else if (typeof document.webkitHidden !== "undefined") {
+			  hidden = "webkitHidden";
+			  visibilityChange = "webkitvisibilitychange";
+			}
+
+			// Set visibility 
+			function handleVisibilityChange() {
+			  if (document[hidden]) {
+			    VISIBLE = false;
+			  } else {
+			    VISIBLE = true;
+			  }
+			}
+
+			if (typeof document.addEventListener === "undefined" || 
+			  typeof hidden === "undefined") {
+			} else {
+			  // Handle page visibility change   
+			  document.addEventListener(visibilityChange, handleVisibilityChange, false);
+			};
+
 			function render() {
 
 				//camera.position.x += ( mouseX - camera.position.x ) * .05;
@@ -208,18 +292,16 @@
 
 				var time = Date.now() * 0.0005;
 
-				// for ( var i = 0; i < scene.children.length; i ++ ) {
-
-				// 	var object = scene.children[ i ];
-				// 	if ( object instanceof THREE.Line ) object.rotation.y = time * ( i % 2 ? 1 : -1 );
-
-				// }
-
 				ship.update();
 
-				renderer.clear();
-				composer.render();
+				particleSystem.position.x = -(ship.object.position.x / 50);
 
+				trySpawn();
+
+				if (VISIBLE) {
+					renderer.clear();
+					composer.render();
+				}
 			}
 
 		</script><div><canvas width="1440" height="715"></canvas></div>
