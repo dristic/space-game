@@ -8,7 +8,14 @@ function Enemy(position, velocity) {
     linewidth: 3
   });
 
-  var geometry = new THREE.BoxGeometry(10, 10, 10);
+  var size = 8;
+  var geometry = new THREE.Geometry();
+  geometry.vertices.push(new THREE.Vector3(-size, -size, 0));
+  geometry.vertices.push(new THREE.Vector3(-size, size, 0));
+  geometry.vertices.push(new THREE.Vector3(size, size, 0));
+  geometry.vertices.push(new THREE.Vector3(size, -size, 0));
+  geometry.vertices.push(new THREE.Vector3(-size, -size, 0));
+  this.size = size;
 
   var line = new THREE.Line(geometry, material);
   line.position.add(position);
@@ -16,17 +23,22 @@ function Enemy(position, velocity) {
   this.velocity = velocity;
 
   this.object = line;
+  this.i = 1;
+  this.rotateKey = ["x", "y", "z"][Math.floor(Math.random() * 3)]
 }
 
 Enemy.prototype.update = function() {
   if (this.object.position.y < -1000) this.shouldDelete = true;
   this.object.position.add(this.velocity);
+
+  this.i += 0.1;
+  this.object.rotation[this.rotateKey] = Math.sin(this.i);
 };
 
 Enemy.prototype.aabb = function() {
   return new THREE.Box2(
-    new THREE.Vector2(this.object.position.x - 5, this.object.position.y - 5),
-    new THREE.Vector2(this.object.position.x + 5, this.object.position.y + 5)
+    new THREE.Vector2(this.object.position.x - this.size, this.object.position.y - this.size),
+    new THREE.Vector2(this.object.position.x + this.size, this.object.position.y + this.size)
   );
 };
 

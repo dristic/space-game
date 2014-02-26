@@ -38,13 +38,7 @@
 		</style>
 	</head>
 	<body>
-
-		<div id="info">
-			<a href="http://threejs.org/" target="_blank">three.js</a> - color lines WebGL demo
-			[<a href="http://en.wikipedia.org/wiki/Hilbert_curve">Hilbert curve</a> thanks to <a href="http://www.openprocessing.org/visuals/?visualID=15599">Thomas Diewald</a>]
-		</div>
-
-		<script src="js/three.min.js"></script>
+		<script src="js/three.js"></script>
 
 		<script src="js/ConvolutionShader.js"></script>
 		<script src="js/CopyShader.js"></script>
@@ -66,12 +60,12 @@
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var effectFXAA;
-
 			var ship, particleSystem;
-
+			var uiScene, uiCamera, uiTexture;
 			var enemies = [],
 					lastSpawn = Date.now(),
-					spawnTime = 3000;
+					spawnTime = 3000,
+					score = 0, uiDirty = false;
 
 			var mouseX = 0, mouseY = 0,
 
@@ -98,6 +92,7 @@
 				renderer = new THREE.WebGLRenderer( { antialias: false } );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				renderer.autoClear = false;
+				renderer.sortObjects = false;
 
 				container.appendChild( renderer.domElement );
 
@@ -133,28 +128,50 @@
 				  particles.vertices.push(particle);
 				}
 
+				// Add particle system for stars
 				particleSystem =
 				  new THREE.ParticleSystem(
 				    particles,
 				    pMaterial);
 				scene.add(particleSystem);
 
-				// var textMat = new THREE.MeshBasicMaterial({
-				// 	color: 0xFFFFFF
-				// });
+				// Create UI layer using canvas over a plane
+				uiScene = new THREE.Scene();
+				uiCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+				uiCanvas = document.createElement('canvas');
+				uiCanvas.width = renderer.domElement.width;
+				uiCanvas.height = renderer.domElement.height;
+				var uiContext = uiCanvas.getContext('2d');
+				uiContext.font = 'Bold 40px Helvetica';
+				uiContext.fillStyle = '#FFFFFF';
+				uiContext.fillText("Score: 0", 101, 101);
 
-				// var textGeo = new THREE.TextGeometry("Lives");
-				// scene.add(new THREE.Mesh(textGeo, textMat));
+				uiTexture = new THREE.Texture(uiCanvas);
+				uiTexture.needsUpdate = true;
+
+				var planeGeo = new THREE.PlaneGeometry(2, 2);
+				var planeMat = new THREE.MeshBasicMaterial({
+					map: uiTexture,
+					side: THREE.DoubleSide,
+					transparent: true
+				});
+				var plane = new THREE.Mesh(planeGeo, planeMat);
+				plane.position.set(0, 0, 0);
+				uiScene.add(plane);
 
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 				document.addEventListener( 'touchstart', onDocumentTouchStart, false );
 				document.addEventListener( 'touchmove', onDocumentTouchMove, false );
 
-				//
+				// Add post effects
 
 				var renderModel = new THREE.RenderPass( scene, camera );
+				var uiRenderModel = new THREE.RenderPass(uiScene, uiCamera);
 				var effectBloom = new THREE.BloomPass( 1.3 );
 				var effectCopy = new THREE.ShaderPass( THREE.CopyShader );
+
+				// We want to render the ui layer over the game
+				uiRenderModel.clear = false;
 
 				effectFXAA = new THREE.ShaderPass( THREE.FXAAShader );
 
@@ -170,16 +187,17 @@
 				composer.addPass( renderModel );
 				composer.addPass( effectFXAA );
 				composer.addPass( effectBloom );
+				composer.addPass( uiRenderModel );
 				composer.addPass( effectCopy );
-
-				//
 
 				window.addEventListener( 'resize', onWindowResize, false );
 			}
 
 			function trySpawn() {
 				if (Date.now() - lastSpawn > spawnTime) {
+					// Spawn a randomly placed enemy and reduce the spawn time for the next enemy.
 					lastSpawn = Date.now();
+					spawnTime--; // Lowering this will increase difficulty
 
 					var xPos = Math.floor(Math.random() * 400) - 200;
 
@@ -192,15 +210,19 @@
 					var enemy = enemies[i];
 					enemy.update();
 
+					// Test to see if we shot an enemy
 					var box = enemy.aabb();
 					for(var j = 0; j < ship.bullets.length; j++) {
 						var bullet = ship.bullets[j];
 						if (box.containsPoint(new THREE.Vector2(bullet.object.position.x, bullet.object.position.y))) {
 							enemy.shouldDelete = true;
 							bullet.shouldDelete = true;
+							score += 100;
+							uiDirty = true;
 						}
 					}
 
+					// Remove all dead enemies
 					if (enemy.shouldDelete) {
 						scene.remove(enemy.object);
 						enemies.splice(i, 1);
@@ -222,6 +244,8 @@
 
 				composer.reset();
 
+				uiCanvas.width = renderer.domElement.width;
+				uiCanvas.height = renderer.domElement.height;
 			}
 
 			//
@@ -270,8 +294,10 @@
 			}
 
 			var VISIBLE = true;
+
 			// Set the name of the hidden property and the change event for visibility
 			var hidden, visibilityChange; 
+
 			if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
 			  hidden = "hidden";
 			  visibilityChange = "visibilitychange";
@@ -316,6 +342,14 @@
 				particleSystem.position.x = -(ship.object.position.x / 50);
 
 				trySpawn();
+
+				if (uiDirty) {
+					var context = uiCanvas.getContext('2d');
+					context.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+					context.fillText("Score: " + score, 101, 101);
+					uiTexture.needsUpdate = true;
+					uiDirty = false;
+				}
 
 				if (VISIBLE) {
 					renderer.clear();
