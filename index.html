@@ -65,7 +65,8 @@
 			var enemies = [],
 					lastSpawn = Date.now(),
 					spawnTime = 3000,
-					score = 0, uiDirty = false;
+					score = 0, uiDirty = false,
+					lives = 3;
 
 			var mouseX = 0, mouseY = 0,
 
@@ -144,7 +145,7 @@
 				var uiContext = uiCanvas.getContext('2d');
 				uiContext.font = 'Bold 40px Helvetica';
 				uiContext.fillStyle = '#FFFFFF';
-				uiContext.fillText("Score: 0", 101, 101);
+				uiDirty = true;
 
 				uiTexture = new THREE.Texture(uiCanvas);
 				uiTexture.needsUpdate = true;
@@ -220,6 +221,13 @@
 							score += 100;
 							uiDirty = true;
 						}
+					}
+
+					// Test to see if the enemy got past us
+					if (enemy.object.position.y < -250) {
+						enemy.shouldDelete = true;
+						lives--;
+						uiDirty = true;
 					}
 
 					// Remove all dead enemies
@@ -341,12 +349,20 @@
 
 				particleSystem.position.x = -(ship.object.position.x / 50);
 
-				trySpawn();
+				if (lives > 0) {
+					trySpawn();
+				}
 
 				if (uiDirty) {
 					var context = uiCanvas.getContext('2d');
 					context.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
 					context.fillText("Score: " + score, 101, 101);
+					context.fillText("Lives: " + lives, 101, 141);
+
+					if (lives <= 0) {
+						context.fillText("Game Over", 300, 300);
+					}
+					
 					uiTexture.needsUpdate = true;
 					uiDirty = false;
 				}
